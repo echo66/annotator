@@ -4,10 +4,16 @@
    "language": "javascript",
    "views": {
        "annotations": {
-           "map": "function(doc) {    if(doc.couchType=='annotation')      emit(doc);   }"
+           "map": "function(doc) {    if(doc.couchType=='annotation')      emit(doc._id, doc);   }"
        },
        "annotations-tracks": {
-           "map": "function(doc) {    if (doc.couchType=='annotations-track')      emit(doc);   }"
+           "map": "function(doc) {    if (doc.couchType=='annotations-track')      emit(doc._id, doc);   }"
+       },
+       "annotations-relations": {
+           "map": "function(doc) {    if (doc.couchType=='annotations-relation')  emit(doc._id, doc); }"
+       },
+       "annotations-types": {
+           "map": "function(doc) {    if (doc.couchType=='annotations-type')  emit(doc._id, doc); }"
        }
    },
    "lists": {
