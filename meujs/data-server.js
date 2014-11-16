@@ -158,7 +158,7 @@ function DataServer() {
     };
     validate();
 
-    var id = data._id || (('anntrack-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
+    var id = data._id || (('ann-track-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
     var handler = customHandler || this.annotationDB.updateHandler;
 
     function aux(err,resp) {
@@ -380,6 +380,62 @@ function DataServer() {
    * ----------
    */
 
+  /*
+   * Annotations Relations
+   */
+
+  this.createAnnotationsRelation = function(data,annsIds,customHandler) {
+    var id = data._id || (('ann-rel-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
+
+    if (annsIds==undefined || annsIds.length==0)
+      throw "[need:annsIds]";
+    if (data.type==undefined)
+      throw "[need:type]";
+
+    var handler = customHandler || this.annotationsDB.updateHandler;
+
+    function aux(err,resp) {
+      DataServer.log('--PouchDB createAnnotationsRelation default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:create-annotations-relation', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      handler(err,resp);
+    };
+
+    var rel = {};
+    for (key in data) {
+      rel[key] = data[key];
+    }
+    rel.connects = annsIds;
+    rel.couchType = "annotation-relation";
+    
+    this.annotationDB.db.put(rel, aux);
+    return rel;
+  }
+
+  this.removeAnnotationsRelation = function(relId,customHandler) {
+    var db = this.annotationsDB.db;
+    var handler = customHandler || this.annotationsDB.removeHandler;
+
+    function aux(err,resp) {
+      DataServer.log('--PouchDB removeAnnotationsRelation default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:remove-annotations-relation', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      handler(err,resp);
+    };
+
+    db.get(relId, function(err, rel) {
+      if (!err) {
+        db.remove(rel, aux);
+      } else 
+        throw err;
+    });
+  }
+
+
 
   this.clearLocal = function() {
     this.annotationsDB.db.destroy();
@@ -388,12 +444,12 @@ function DataServer() {
 }
 
 DataServer.log = function log(title,err,resp) { 
-    console.log(' ');
-    console.log(title);
-    console.log('err');
-    console.log(err); 
-    console.log('resp');
-    console.log(resp);
-    console.log('-----------------');
-    console.log(' ');
-  }
+  console.log(' ');
+  console.log(title);
+  console.log('err');
+  console.log(err); 
+  console.log('resp');
+  console.log(resp);
+  console.log('-----------------');
+  console.log(' ');
+}
