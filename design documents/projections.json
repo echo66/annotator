@@ -1,6 +1,5 @@
 {
    "_id": "_design/projections",
-   "_rev": "4-cf4d2458f56a03db2d93625cbb1fea88",
    "language": "javascript",
    "views": {
        "annotations": {
@@ -14,9 +13,14 @@
        },
        "annotations-types": {
            "map": "function(doc) {    if (doc.couchType=='annotations-type')  emit(doc._id, doc); }"
+       },
+       "annotations-relations-types": {
+           "map": "function(doc) {    if (doc.couchType=='annotations-relations-type')  emit(doc._id, doc); }"
        }
    },
    "lists": {
-       "per_user_and_music": "function(head, req) {     var row;    var response = [];    var musicId = req.query.musicId;    var username = userCtx.name;    start({'headers': { 'Content-Type': 'application/json' } });    while(row = getRow()) {      var doc = row.value;     if(doc.user==username && doc.musicId==musicId)      response.push(doc);    }    send(toJSON(response));  }"
+       "per_user_and_music": "function(head, req) {     var row;    var response = [];    var musicId = req.query.musicId;    var username = userCtx.name;    start({'headers': { 'Content-Type': 'application/json' } });    while(row = getRow()) {      var doc = row.value;     if(doc.user==username && doc.musicId==musicId)      response.push(doc);    }    send(toJSON(response));  }", 
+
+       "per_user_and_annotations_track" : "function(head, req) { var row; var response = []; var trackId = req.query.trackId; var username = userCtx.name; start({'headers': { 'Content-Type': 'application/json' } }); while(row = getRow()) {  var doc = row.value;  if(doc.user==username && doc.trackId==trackId)   response.push(doc); } send(toJSON(response));}"
    }
 }
