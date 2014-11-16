@@ -1,5 +1,5 @@
 {
    "_id": "_design/_auth",
    "language": "javascript",
-   "validate_doc_update": "function(newDoc, oldDoc, userCtx, secObj) {\n    if (!userCtx.name)\n        throw({forbidden: 'Cannot update/create new documents as an anonymous user.'});\n    if (newDoc.creationDate != oldDoc.creationDate)\n        throw({forbidden: 'Cannot change the creation date.'});\n    if (!newDoc.updateDate && oldDoc)\n        throw({forbidden: 'Updated documents must have an updateDate field.'});\n    if (newDoc.couchType != oldDoc.couchType)\n        throw({forbidden: 'You can\'t change couchType field.'})\n    if (newDoc.user && (newDoc.user != userCtx.user))\n        throw({forbidden: 'user field must be equal to your username'});\n}"
+   "validate_doc_update": "function(newDoc, oldDoc, userCtx, secObj) {    if (!userCtx.name)        throw({forbidden: 'Cannot update/create new documents as an anonymous user.'});    if (newDoc.creationDate != oldDoc.creationDate)        throw({forbidden: 'Cannot change the creation date.'});    if (!newDoc.updateDate && oldDoc)        throw({forbidden: 'Updated documents must have an updateDate field.'});    if (newDoc.couchType != oldDoc.couchType)        throw({forbidden: 'You can\'t change couchType field.'})    if (newDoc.user && (newDoc.user != userCtx.user))        throw({forbidden: 'user field must be equal to your username'});}"
 }
