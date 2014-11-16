@@ -114,12 +114,13 @@ function DataServer() {
 
   this.init = function() {
     this.annotationDB = {
-      //db: new PouchDB('annotations'),
       url: "http://localhost:5984/music-annotation",
       removeHandler: this.logRemove,
       showHandler: this.logShow, 
       updateHandler: this.logUpdate
     };
+
+    PouchDB.plugin(List);
     
     this.annotationDB.db = new PouchDB(this.annotationDB.url);
 
@@ -220,11 +221,31 @@ function DataServer() {
 
       handler(err,resp);
 
+      var listURL = "projections/per_user_and_annotations_track/annotations";
+      listURL = listURL + "?trackId="+annTrackId;
+
+      db1.list("projections/per_user_and_annotations_track/annotations",function(e1,r1) {
+        if (!e1) {
+          r1.json.forEach(function(ann){
+            db1.remove(ann, function(e2,r2) {
+              if(!e2) {
+                console.log("Removed annotation "+ann._idp+" associated with annotations track "+annTrack._id);
+              } else 
+                console.log("Error: could not remove annotation "+ann._idp+" associated with annotations track "+annTrack._id);
+                console.log(e2);
+            });
+          });
+        } else {
+          console.log("Error: could not remove annotations associated with annotations track "+annTrack._id);
+          console.log(e1);
+        }
+      });
+
       // TODO: remove all annotations under this track.
     };
 
-    db1.get(annTrack._id,function(err,ann){
-      db1.remove(ann,aux);
+    db1.get(annTrack._id,function(err,doc){
+      db1.remove(doc,aux);
     });
   }
 
@@ -233,10 +254,12 @@ function DataServer() {
     if (!customHandler)
       throw "[need:customHandler]";
 
-    this.annotationsDB.db.query(function(doc,emit){
-      if(doc.musicId==musicId && doc.user==username)
-        emit(doc);
-    }, customHandler);
+    var listURL = "projections/per_user_and_music/annotations-tracks";
+    listURL += "?musicId="+musicId;
+
+    db.list(listURL, function(err,resp) {
+      customHandler(err, (resp)?resp.json:undefined);
+    });
   }
 
 
@@ -343,10 +366,14 @@ function DataServer() {
   this.getAllTrackAnnotations = function(trackId, customHandler) {
     if (!customHandler)
       throw "[need:customHandler]";
-    this.annotationsDB.db.query(function(doc,emit){
-      if(doc.trackId==trackId && doc.user==username)
-        emit(doc);
-    }, customHandler);
+
+
+    var listURL = "projections/per_user_and_annotations_track/annotations-";
+    listURL += "?trackId="+trackId;
+
+    db.list(listURL, function(err,resp) {
+      customHandler(err, (resp)?resp.json:undefined);
+    });
   }
 
   /*
