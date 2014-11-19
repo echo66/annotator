@@ -20,6 +20,8 @@ function AnnotationsTrackCtr(params) {
     var _dataServer = params.dataServer;
     var _musicId = params.musicId;
 
+    var _blockBeingEdited;
+
 
     this.init = function() {
         //TRACK DATA
@@ -41,7 +43,6 @@ function AnnotationsTrackCtr(params) {
         });
         var panelTitleLink = $("<a>",{
             'data-toggle':"collapse",
-            //'data-parent':"#"+_master_container_dom_id,
             href:"#annotations-track-container-collapse-"+_id,
             id:"annotations-track-title-"+_id
         });
@@ -65,6 +66,7 @@ function AnnotationsTrackCtr(params) {
         panelHeading.append(panelTitle);
         panelBody.append(trackButtonsGroupHTML());
         panelBody.append(trackCanvas);
+        panelGroup.append(panelBody);
         panelCollapse.append(panelBody);
         panel.append(panelHeading);
         panel.append(panelCollapse);
@@ -87,13 +89,8 @@ function AnnotationsTrackCtr(params) {
     }
 
     function loadAnnotations() {
-        _dataServer.annotations.db.query(function(doc,emit){
-            if(doc.trackId==_id) {
-                emit(doc);
-            }
-        }).then( function(anns) {
-            anns.rows.forEach(function(ann) {
-                ann = ann.key;
+        _dataServer.getAllTrackAnnotations(_id, function(err,anns) {
+            anns.forEach(function(ann) {
                 put_annotation_on_canvas(ann);
             });
             _canvas.renderAll();
@@ -101,6 +98,7 @@ function AnnotationsTrackCtr(params) {
     }
 
     this.setGridStruct = function(newBeatGrid) {
+
         _beatgrid = newBeatGrid;
     }
 
@@ -173,6 +171,20 @@ function AnnotationsTrackCtr(params) {
 
         _canvas.on('object:scaling', object_scaling);
 
+        _canvas.on('mouse:up', function(options) {
+
+            var shape = options.target;
+
+            if (_blockBeingEdited) {
+                _dataServer.updateAnnotation({
+                    _id: shape.annotation.id,
+                    start: canvas_coords_to_time(shape.left),
+                    end: canvas_coords_to_time(shape.left + shape.getScaleX() * shape.originalState.width)
+                }, mylog);
+            }
+
+            _blockBeingEdited = undefined;
+        });
 
         _canvas.on('mouse:down', function (options) {
 
@@ -181,6 +193,10 @@ function AnnotationsTrackCtr(params) {
                 my.openAnnotationInfoDialog(options.target);
                 return;
             }
+
+            if (options.target) 
+                _blockBeingEdited = options.target;
+
 
             /*
              * I need to comment this because of what seems to be a bug: 
@@ -318,7 +334,7 @@ function AnnotationsTrackCtr(params) {
     this.delete = function() {
 
         _dataServer.removeAnnotationsTrack(_id, function(err,resp){
-            $("#annotations-track-panel-"+trackId).remove();
+            $("#annotations-track-panel-"+_id).remove();
             _canvas.clear();
             _canvas = undefined;
             var event = new CustomEvent('annotation-track:deleted', { '_id': _id });
@@ -377,49 +393,6 @@ function AnnotationsTrackCtr(params) {
 
 
 
-    function object_moving(options) {      
-
-        var shape = options.target;
-        var startTime = canvas_coords_to_time(shape.left);
-        var endTime = canvas_coords_to_time(shape.left+shape.currentWidth);
-        var alignedStartTime = align_time_to_grid(_beatgrid, startTime);
-        var alignedEndTime = align_time_to_grid(_beatgrid, endTime);
-        var alignedX = time_to_canvas_coords(alignedStartTime);
-        
-
-        // ANNOTATION DATA
-
-        _dataServer.updateAnnotation(
-            {
-                _id: shape.annotation.id, 
-                start: alignedStartTime, 
-                end: alignedEndTime
-            },
-            function(err,resp){
-                _canvas.off('object:moving',object_moving);
-                _canvas.off('object:moving',object_scaling);
-
-                options.target.set({
-                    left: alignedX,
-                    top: 0
-                });
-
-                _canvas.calcOffset();
-                _cursor.setCoords();
-
-                _canvas.on('object:moving',object_moving);
-                _canvas.on('object:moving',object_scaling);
-        });
-        
-        console.log('-------------------');
-        console.log('fabric.js - object:moving');
-        console.log('original left: ' + options.target.left);
-        console.log('aligned left: ' + time_to_canvas_coords(align_time_to_grid(_beatgrid, canvas_coords_to_time(options.target.left))));
-        console.log('-------------------');
-    }
-
-
-
     //--------------
     //--------------
     //--------------
@@ -465,6 +438,8 @@ function AnnotationsTrackCtr(params) {
             originY: 'top',
             centeredRotation: true,
             lockScalingY: true,
+            lockMovementY: true, 
+            lockRotation: true,
             hasBorders: true,
             stroke : 'black'
         });
@@ -500,9 +475,7 @@ function AnnotationsTrackCtr(params) {
 
     function object_scaling(options) {
 
-        log_fabricjs_canvas_event('fabric.js - object:scaling',options);
-
-        var shape = options.target;
+        // log_fabricjs_canvas_event('fabric.js - object:scaling',options);
 
         // 
         // I'm calculating realCurrentWidth because, for some reason, shape.currentWidth doesn't 
@@ -510,52 +483,98 @@ function AnnotationsTrackCtr(params) {
         //
         var shape = options.target;
         var realCurrentWidth = shape.getScaleX() * shape.originalState.width;
-        var blockEndTime = (shape.left+realCurrentWidth) / _canvas.width;
-        blockEndTime = blockEndTime * _duration;
-        var alignedBlockEndTime = align_time_to_grid(_beatgrid, blockEndTime);
-        var alignedScaleX = ((alignedBlockEndTime / _duration) * _canvas.width - shape.left) / shape.originalState.width;
-        var alignedCurrentWidth = ((alignedBlockEndTime / _duration) * _canvas.width - shape.left);
+        var blockEndTime = canvas_coords_to_time(shape.left+realCurrentWidth);
+
+        if (snapToGrid) 
+            blockEndTime = align_time_to_grid(_beatgrid, blockEndTime);
+
+        var alignedScaleX = ((blockEndTime / _duration) * _canvas.width - shape.left) / shape.originalState.width;
+        var alignedCurrentWidth = ((blockEndTime / _duration) * _canvas.width - shape.left);
         
         if (alignedCurrentWidth<1 || isNaN(alignedCurrentWidth)) {
             console.log("REFUSED OBJECT SCALING");
             return;
         }
 
-        _dataServer.updateAnnotation({_id: shape.annotation.id, end: alignedBlockEndTime}, function(err,resp) {
-            if (!err) {
-                //-----
-
-                _canvas.off('object:scaling',object_scaling);
-
-                shape.set({
-                    scaleX: alignedScaleX,
-                    strokeWidth: 1 / Math.round(alignedScaleX)
-                });
-
-                _canvas.renderAll();
-                _canvas.calcOffset();
-                _cursor.setCoords();
+        // _dataServer.updateAnnotation({
+        //     _id: shape.annotation.id,
+        //     start: canvas_coords_to_time(shape.left),
+        //     end: blockEndTime
+        // }, function(err,resp) {
+        //     if (!err) {
                 
 
-                //_canvas.renderAll();
+        //         var event = new CustomEvent('annotation-track:annotation-updated', { 'ann': resp });
+        //         document.dispatchEvent(event);
+        //     } else
+        //         console.log(err);
+        // });
 
-                // ANNOTATION DATA
-                // _annotations[shape.id].length = shape.getWidth()/_grid;
-                _dataServer.annotations.db.get(shape.annotation.id, function(err, otherDoc) {
-                    otherDoc.start = canvas_coords_to_time(shape.left);
-                    otherDoc.end = alignedBlockEndTime;
-                    _dataServer.annotations.db.put(
-                        otherDoc
-                    );
-                });
+        _canvas.off('object:scaling',object_scaling);
+        _canvas.off('object:scaling',object_moving);
 
-                _canvas.on('object:scaling',object_scaling);
-
-
-                //----
-            }
+        shape.set({
+            scaleX: alignedScaleX,
+            strokeWidth: 1 / Math.round(alignedScaleX)
         });
 
+        _canvas.renderAll();
+        _canvas.calcOffset();
+        _cursor.setCoords();
+
+        _canvas.on('object:scaling',object_scaling);
+        _canvas.on('object:moving',object_moving);
+
+    }
+
+    function object_moving(options) {      
+
+        var shape = options.target;
+        var startTime = canvas_coords_to_time(shape.left);
+        var endTime = canvas_coords_to_time(shape.left + shape.currentWidth);
+        
+        if (snapToGrid) {
+            startTime = align_time_to_grid(_beatgrid, startTime);
+            endTime = align_time_to_grid(_beatgrid, endTime);
+        }
+
+        var alignedX = time_to_canvas_coords(startTime);
+        
+
+        // ANNOTATION DATA
+
+        // _dataServer.updateAnnotation(
+        //     {
+        //         _id: shape.annotation.id, 
+        //         start: startTime, 
+        //         end: endTime
+        //     },
+        //     function(err,resp){
+                
+
+        //         var event = new CustomEvent('annotation-track:annotation-updated', { 'ann': resp });
+        //         document.dispatchEvent(event);
+        // });
+
+        _canvas.off('object:moving',object_moving);
+        _canvas.off('object:scaling',object_scaling);
+
+        options.target.set({
+            left: alignedX,
+            top: 0
+        });
+
+        _canvas.calcOffset();
+        _cursor.setCoords();
+
+        _canvas.on('object:moving',object_moving);
+        _canvas.on('object:scaling',object_scaling);
+        
+        console.log('-------------------');
+        console.log('fabric.js - object:moving');
+        console.log('original left: ' + options.target.left);
+        console.log('aligned left: ' + time_to_canvas_coords(align_time_to_grid(_beatgrid, canvas_coords_to_time(options.target.left))));
+        console.log('-------------------');
     }
 
 }

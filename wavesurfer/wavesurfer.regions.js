@@ -58,23 +58,17 @@ WaveSurfer.Regions = {
         var start;
         var region;
 
-        this.wrapper.addEventListener('mousedown', function (e) {
+        function start_region_creation_drag(e) {
             if (my.dragSelection) {
                 drag = true;
                 start = my.wavesurfer.drawer.handleEvent(e);
                 region = null;
+                my.wrapper.addEventListener('mousemove',continue_region_creation_drag);
+                my.wrapper.addEventListener('mouseup',end_region_creation_drag);
             }
-        });
+        }
 
-        this.wrapper.addEventListener('mouseup', function () {
-            if (my.dragSelection) {
-                drag = false;
-                my.wavesurfer.fireEvent('region-update-end',region);
-                region = null;
-            }
-        });
-
-        this.wrapper.addEventListener('mousemove', function (e) {
+        function continue_region_creation_drag(e) {
             if (my.dragSelection) {
                 if (!drag) { return; }
 
@@ -89,7 +83,21 @@ WaveSurfer.Regions = {
                     end: Math.max(end * duration, start * duration)
                 });
             }
-        });
+        }
+
+        function end_region_creation_drag(e) {
+            if (my.dragSelection) {
+                drag = false;
+                //my.wavesurfer.fireEvent('region-update-end',region);
+                if (region)
+                    my.wavesurfer.fireEvent('region-drag-creation-end',region);
+                region = null;
+                my.wrapper.removeEventListener('mousemove',continue_region_creation_drag);
+                my.wrapper.removeEventListener('mouseup',end_region_creation_drag);
+            }
+        }
+
+        this.wrapper.addEventListener('mousedown', start_region_creation_drag);
     }
 };
 

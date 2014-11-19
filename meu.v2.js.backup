@@ -178,7 +178,8 @@
             loaderColor   : 'purple',
             cursorColor   : 'navy',
             minPxPerSec   : 40,
-            scrollParent  : true
+            scrollParent  : true,
+	    renderer	  : 'SVG'
         };
 
     /* Progress bar */

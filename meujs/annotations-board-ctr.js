@@ -20,26 +20,20 @@ function AnnotationsBoardCtr(params) {
   var _dataServer = params.dataServer;
 
   this.init = function() {
-    var db = _dataServer.annotationsTracks.db;
 
-    db.query(function(doc,emit){
-      if(doc.musicId==_musicId && doc.user==_dataServer.username) {
-        emit(doc);
+    _dataServer.getAllAnnotationsTracks(_musicId,function(err,anntracks){
+      if (!err) {
+        console.log("nº existing annotation tracks: "+anntracks.length);
+        anntracks.forEach(function(anntrack) {
+
+          drawAnnotationsTrackUI(anntrack);
+          
+        });
+      } else {
+        console.log('err');
+        console.log(err);
       }
-    }).then( function(anntracks) {
-      console.log('existing annotation tracks');
-      anntracks.rows.forEach(function(anntrack) {
-
-        anntrack = anntrack.key;
-
-        drawAnnotationsTrackUI(anntrack);
-        
-      })
-    }).catch( function(err) {
-      console.log('err');
-      console.log(err);
     });
-
   }
 
 	this.addAnnotationsTrack = function(opts) {

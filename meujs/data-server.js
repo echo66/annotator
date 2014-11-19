@@ -16,70 +16,6 @@ function DataServer() {
     }
   }
 
-  this.login = function(username,password,callback) {
-    this.username = "";
-    function aux(err,resp) {
-      DataServer.log('--PouchDB login default callback--', err, resp);
-      if (!err)
-        this.username = username;
-
-      var event = new CustomEvent('data-server:login', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
-
-      callback(err,resp);
-    };
-    this.annotationDB.db.login(username, password, aux);
-  }
-
-  this.signUp = function(username,password,callback) {
-    function aux(err,resp) {
-      DataServer.log('--PouchDB signup default callback--', err, resp);
-
-      var event = new CustomEvent('data-server:signup', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
-
-      callback(err,resp);
-    };
-    this.annotationDB.db.signUp(username, password, aux);
-  }
-
-  this.logout = function(callback) {
-    function aux(err,resp) {
-      this.username = "";
-      DataServer.log('--PouchDB logout default callback--', err, resp);
-
-      var event = new CustomEvent('data-server:logout', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
-
-      callback(err,resp);
-    };
-    this.annotationDB.db.logout(aux);
-  }
-
-  this.getSession = function(callback) {
-    function aux(err,resp) {
-      DataServer.log('--PouchDB getsession default callback--', err, resp);
-
-      var event = new CustomEvent('data-server:getsession', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
-
-      callback(err,resp);
-    };
-    this.annotationDB.db.getSession(aux);
-  }
-
-  this.getUser = function(username) {
-    function aux(err,resp) {
-      DataServer.log('--PouchDB getuser default callback--', err, resp);
-
-      var event = new CustomEvent('data-server:getuser', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
-
-      callback(err,resp);
-    };
-    this.annotationDB.db.getUser(username,aux);
-  }
-
   this.logRemove = function(x,y) {
     DataServer.log('remove ',x,y);
   }
@@ -109,7 +45,7 @@ function DataServer() {
 
     var struct1 = this.annotationDB;
 
-    init_info(this.annotationDB.db, function(x,y){struct1.showHandler(x,y);}, "annotationsDB.db.info!");
+    init_info(this.annotationDB.db, function(x,y){struct1.showHandler(y,x);}, "annotationDB.db.info!");
   }
 
   this.init = function() {
@@ -123,6 +59,12 @@ function DataServer() {
     PouchDB.plugin(List);
     
     this.annotationDB.db = new PouchDB(this.annotationDB.url);
+
+    var my = this;
+    this.getSession(function(err,resp){
+      if (resp.userCtx.name)
+        my.username = resp.userCtx.name;
+    })
 
     var event = new CustomEvent('data-server:init', {});
     document.dispatchEvent(event);
@@ -145,7 +87,80 @@ function DataServer() {
   }
 
 
-  
+  this.getUsername = function() {
+    return this.username;
+  }
+
+  this.login = function(username,password,customHandler) {
+    this.username = undefined;
+    var my = this;
+    function aux(err,resp) {
+      DataServer.log('--PouchDB login default callback--', err, resp);
+      if (!err)
+        my.username = username;
+
+      var event = new CustomEvent('data-server:login', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+      
+      if (customHandler)
+        customHandler(err,resp);
+    };
+    this.annotationDB.db.login(username, password, aux);
+  }
+
+  this.signUp = function(username,password,customHandler) {
+    function aux(err,resp) {
+      DataServer.log('--PouchDB signup default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:signup', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      if (customHandler)
+        customHandler(err,resp);
+    };
+    this.annotationDB.db.signUp(username, password, aux);
+  }
+
+  this.logout = function(customHandler) {
+    var my = this;
+    function aux(err,resp) {
+      my.username = undefined;
+      DataServer.log('--PouchDB logout default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:logout', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      if (customHandler)
+        customHandler(err,resp);
+    };
+    this.annotationDB.db.logout(aux);
+  }
+
+  this.getSession = function(customHandler) {
+    function aux(err,resp) {
+      DataServer.log('--PouchDB getsession default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:getsession', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      if (customHandler)
+        customHandler(err,resp);
+    };
+    this.annotationDB.db.getSession(aux);
+  }
+
+  this.getUser = function(username,customHandler) {
+    function aux(err,resp) {
+      DataServer.log('--PouchDB getuser default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:getuser', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      if (customHandler)
+        customHandler(err,resp);
+    };
+    this.annotationDB.db.getUser(username,aux);
+  }
 
 
   this.createAnnotationsTrack = function(data, customHandler) {
@@ -188,6 +203,7 @@ function DataServer() {
   this.updateAnnotationsTrack = function(data, customHandler) {
     var db = this.annotationDB.db;
     var handler = customHandler || this.annotationDB.updateHandler;
+    var doc;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB updateAnnotationsTrack default callback--', err, resp);
@@ -195,13 +211,14 @@ function DataServer() {
       var event = new CustomEvent('data-server:update-annotations-track', { 'err': err, 'resp': resp });
       document.dispatchEvent(event);
 
-      handler(err,resp);
+      handler(err,doc);
     };
 
     db.get(data._id, function(err, otherDoc) {
         otherDoc.title = data.title || otherDoc.title;
         otherDoc.types = data.types || otherDoc.types;
         otherDoc.description = data.description || otherDoc.description;
+        doc = otherDoc;
         db.put(
             otherDoc, aux
         );
@@ -209,43 +226,40 @@ function DataServer() {
   }
 
   
-  this.removeAnnotationsTrack = function(annTrack, customHandler) {
+  this.removeAnnotationsTrack = function(annTrackId, customHandler) {
     var db1 = this.annotationDB.db;
-    var handler = customHandler || this.annotationsDB.removeHandler;
+    var handler = customHandler || this.annotationDB.removeHandler;
 
-    function aux(err,resp) {
-      DataServer.log('--PouchDB removeAnnotationsTrack default callback--', err, resp);
+    db1.get(annTrackId,function(err,annTrack){
+      db1.remove(annTrack, function (err,resp) {
+        DataServer.log('--PouchDB removeAnnotationsTrack default callback--', err, resp);
 
-      var event = new CustomEvent('data-server:remove-annotations-track', { 'err': err, 'resp': resp });
-      document.dispatchEvent(event);
+        var event = new CustomEvent('data-server:remove-annotations-track', { 'err': err, 'resp': resp });
+        document.dispatchEvent(event);
 
-      handler(err,resp);
+        var listURL = "projections/per_user_and_annotations_track/annotations";
+        listURL = listURL + "?trackId="+annTrack._id;
 
-      var listURL = "projections/per_user_and_annotations_track/annotations";
-      listURL = listURL + "?trackId="+annTrackId;
-
-      db1.list("projections/per_user_and_annotations_track/annotations",function(e1,r1) {
-        if (!e1) {
-          r1.json.forEach(function(ann){
-            db1.remove(ann, function(e2,r2) {
-              if(!e2) {
-                console.log("Removed annotation "+ann._idp+" associated with annotations track "+annTrack._id);
-              } else 
-                console.log("Error: could not remove annotation "+ann._idp+" associated with annotations track "+annTrack._id);
-                console.log(e2);
+        db1.list("projections/per_user_and_annotations_track/annotations",function(e1,r1) {
+          if (!e1) {
+            r1.json.forEach(function(ann){
+              db1.remove(ann, function(e2,r2) {
+                if(!e2) {
+                  console.log("Removed annotation "+ann._idp+" associated with annotations track "+annTrack._id);
+                } else 
+                  console.log("Error: could not remove annotation "+ann._idp+" associated with annotations track "+annTrack._id);
+                  console.log(e2);
+              });
             });
-          });
-        } else {
-          console.log("Error: could not remove annotations associated with annotations track "+annTrack._id);
-          console.log(e1);
-        }
+          } else {
+            console.log("Error: could not remove annotations associated with annotations track "+annTrack._id);
+            console.log(e1);
+          }
+        });
+
+        handler(err,resp);
+
       });
-
-      // TODO: remove all annotations under this track.
-    };
-
-    db1.get(annTrack._id,function(err,doc){
-      db1.remove(doc,aux);
     });
   }
 
@@ -257,7 +271,7 @@ function DataServer() {
     var listURL = "projections/per_user_and_music/annotations-tracks";
     listURL += "?musicId="+musicId;
 
-    db.list(listURL, function(err,resp) {
+    this.annotationDB.db.list(listURL, function(err,resp) {
       customHandler(err, (resp)?resp.json:undefined);
     });
   }
@@ -285,7 +299,7 @@ function DataServer() {
     validate();
 
     var id = data._id || (('ann-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
-    var handler = customHandler || this.annotationsDB.updateHandler;
+    var handler = customHandler || this.annotationDB.updateHandler;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB createAnnotation default callback--', err, resp);
@@ -315,8 +329,9 @@ function DataServer() {
 
 
   this.updateAnnotation = function(data, customHandler) {
-    var db = this.annotationsDB.db;
-    var handler = customHandler || this.annotationsDB.updateHandler;
+    var db = this.annotationDB.db;
+    var handler = customHandler || this.annotationDB.updateHandler;
+    var doc;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB updateAnnotation default callback--', err, resp);
@@ -324,7 +339,7 @@ function DataServer() {
       var event = new CustomEvent('data-server:update-annotations-track', { 'err': err, 'resp': resp });
       document.dispatchEvent(event);
 
-      handler(err,resp);
+      handler(err,doc);
     };
 
     db.get(data._id, function(err, otherDoc) {
@@ -334,16 +349,17 @@ function DataServer() {
         otherDoc.start = data.start || otherDoc.start;
         otherDoc.end = data.end || otherDoc.end;
         otherDoc.color = data.color || otherDoc.color;
+        doc = otherDoc;
         db.put(
-            otherDoc, aux
+            otherDoc, {include_docs:true}, aux
         );
     });
   }
 
 
   this.removeAnnotation = function(annId, customHandler) {
-    var db = this.annotationsDB.db;
-    var handler = customHandler || this.annotationsDB.removeHandler;
+    var db = this.annotationDB.db;
+    var handler = customHandler || this.annotationDB.removeHandler;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB removeAnnotation default callback--', err, resp);
@@ -368,10 +384,10 @@ function DataServer() {
       throw "[need:customHandler]";
 
 
-    var listURL = "projections/per_user_and_annotations_track/annotations-";
+    var listURL = "projections/per_user_and_annotations_track/annotations";
     listURL += "?trackId="+trackId;
 
-    db.list(listURL, function(err,resp) {
+    this.annotationDB.db.list(listURL, function(err,resp) {
       customHandler(err, (resp)?resp.json:undefined);
     });
   }
@@ -392,7 +408,7 @@ function DataServer() {
     if (data.type==undefined)
       throw "[need:type]";
 
-    var handler = customHandler || this.annotationsDB.updateHandler;
+    var handler = customHandler || this.annotationDB.updateHandler;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB createAnnotationsRelation default callback--', err, resp);
@@ -415,8 +431,8 @@ function DataServer() {
   }
 
   this.removeAnnotationsRelation = function(relId,customHandler) {
-    var db = this.annotationsDB.db;
-    var handler = customHandler || this.annotationsDB.removeHandler;
+    var db = this.annotationDB.db;
+    var handler = customHandler || this.annotationDB.removeHandler;
 
     function aux(err,resp) {
       DataServer.log('--PouchDB removeAnnotationsRelation default callback--', err, resp);
@@ -438,7 +454,7 @@ function DataServer() {
 
 
   this.clearLocal = function() {
-    this.annotationsDB.db.destroy();
+    this.annotationDB.db.destroy();
   }
 
 }
