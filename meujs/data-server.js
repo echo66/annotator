@@ -192,7 +192,7 @@ function DataServer() {
       description: data.description || '',
       types: data.types || [],
       user: data.user,
-      couchType: 'annotations-track'
+      couchTypes: ['annotations-track']
     };
 
     this.annotationDB.db.put(annTrack, aux);
@@ -321,7 +321,7 @@ function DataServer() {
       end: data.end,
       color: data.color || 'grey',
       user: data.user,
-      couchType: 'annotation'
+      couchTypes: ['annotation']
     };
     this.annotationDB.db.put(ann, aux);
     return ann;
@@ -424,7 +424,7 @@ function DataServer() {
       rel[key] = data[key];
     }
     rel.connects = annsIds;
-    rel.couchType = "annotation-relation";
+    rel.couchTypes = ['annotation-relation'];
     
     this.annotationDB.db.put(rel, aux);
     return rel;
@@ -450,6 +450,69 @@ function DataServer() {
         throw err;
     });
   }
+
+  /*
+   * Concepts
+   */
+  this.createConcept = function(data,customHandler) {
+    var id = data._id || (('concept-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
+
+    var handler = customHandler || this.annotationDB.updateHandler;
+
+    function aux(err,resp) {
+      DataServer.log('--PouchDB createConcept default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:create-concept', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      handler(err,resp);
+    };
+
+    var concept = {
+      title: data.title,
+      description: data.description,
+      user: this.getUsername(),
+      subtypes: data.subtypes,
+      supertypes: data.supertypes,
+      couchTypes: ['concept']
+    };
+    
+    this.annotationDB.db.put(concept, aux);
+    return concept;
+  }
+
+
+  /*
+   * Feedback
+   */
+
+  this.createFeedback = function(data, types, customHandler) {
+    var id = data._id || (('feedback-' + (new Date().toISOString())).replace(/\./g,"-").replace(/:/g,"-") + PouchDB.utils.uuid());
+    var handler = customHandler || this.annotationDB.updateHandler;
+
+    function aux(err,resp) {
+      DataServer.log('--PouchDB createFeedback default callback--', err, resp);
+
+      var event = new CustomEvent('data-server:create-feedback', { 'err': err, 'resp': resp });
+      document.dispatchEvent(event);
+
+      handler(err,resp);
+    };
+
+    var feedback = {
+      _id: id,
+      user: this.getUsername(),
+      content: data.content, 
+      title: data.title || '',
+      responseTo: data.responseTo, // other feedback ID
+      relatedTo: data.relatedTo,
+      couchTypes: ['feedback'].push(types)
+    };
+
+    this.annotationDB.db.put(ann, aux);
+    return ann;
+  }
+
 
 
 

@@ -3,19 +3,19 @@
    "language": "javascript",
    "views": {
        "annotations": {
-           "map": "function(doc) {    if(doc.couchType=='annotation')      emit(doc._id, doc);   }"
+           "map": "function(doc) {    if(doc.couchTypes.indexOf('annotation')!=-1)      emit(doc._id, doc);   }"
        },
        "annotations-tracks": {
-           "map": "function(doc) {    if (doc.couchType=='annotations-track')      emit(doc._id, doc);   }"
+           "map": "function(doc) {    if (doc.couchTypes.indexOf('annotations-track')!=-1)      emit(doc._id, doc);   }"
        },
        "annotations-relations": {
-           "map": "function(doc) {    if (doc.couchType=='annotations-relation')  emit(doc._id, doc); }"
+           "map": "function(doc) {    if (doc.couchTypes.indexOf('annotations-relation')!=-1)  emit(doc._id, doc); }"
        },
        "annotations-types": {
-           "map": "function(doc) {    if (doc.couchType=='annotations-type')  emit(doc._id, doc); }"
+           "map": "function(doc) {    if (doc.couchTypes.indexOf('annotations-type')!=-1)  emit(doc._id, doc); }"
        },
        "annotations-relations-types": {
-           "map": "function(doc) {    if (doc.couchType=='annotations-relations-type')  emit(doc._id, doc); }"
+           "map": "function(doc) {    if (doc.couchTypes.indexOf('annotations-relations-type')!=-1)  emit(doc._id, doc); }"
        }
    },
    "lists": {
