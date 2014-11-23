@@ -1,142 +1,168 @@
-function annotationDialog(aid) {
+function annotationDialog(aid,dataServer) {
+
+    dataServer.getAnnotation(aid,function(err,annotation){
+        var prefix = (Math.random() + "").replace(/\./g,"-");
+        if (!err) {
+            dataServer.getAnnotationsTypes(annotation.types, function(err,types){
+                if(!err) {
+                    BootstrapDialog.show({
+                        title: "Edit <b>" + annotation.title + "</b> info",
+                        message: function() {
+                            console.log('message');
+                            var s = 
+                                create_form_fields(prefix,[
+                                    {id: 'id', type: 'static-text', label: 'ID', value: annotation._id},
+                                    {id: 'title', type: 'text', label: 'Title', value: annotation.title, placeholder: "Annotation Title"},
+                                    {id: 'description', type: 'textarea', label:'Description', value: annotation.description, placeholder: "Annotation Description"},
+                                    {id: 'types', type: 'tags', label: 'Types'},
+                                    {id: 'color', type: 'text', label: 'Color', value: annotation.color}, 
+                                    {id: 'period', type: 'static-text', label: 'Period', value: (annotation.start + " => " + annotation.end)}
+                                ]);
+                            return s;
+                        },
+                        onshow: function(dialog){
+
+                            var url = 'http://localhost:5984/music-annotation/_design/projections/_list/query_title/annotations-types?title=%QUERY';
+                            init_tags_input(url, annotation._id, prefix, dialog, types);
+                            
+                        },
+                        buttons: [
+                            {
+                                label: 'Save',
+                                action: function(dialog){
+                                    // ANNOTATION DATA
+                                    var modal = dialog.getModalBody();
+                                    annotation.title = modal.find("#"+prefix+"-title-form-input").val();
+                                    annotation.description = modal.find("#"+prefix+"-description-form-input").val();
+                                    annotation.color = modal.find("#"+prefix+"-color-form-input").val();
+                                    annotation.types = modal.find("#"+prefix+"-types-form-input").tagsinput('items').map(function(el){ return el._id; });
+                                    dataServer.updateAnnotation(annotation, function(err,resp){
+                                        if (!err) 
+                                            dialog.close();
+                                    });
+                                }
+                            },
+                            {
+                                label: 'Show Types Available',
+                                action: function(dialog){
+                                    //TODO
+                                }
+                            }
+                        ]
+                    });
+                }
+            })
+            
+        }
+    });
+    
+}
+
+function annotationsTrackDialog(anntrackid) {
     //TODO
     //TITLE: TEXT | EDITABLE
     //DESCRIPTION: TEXT | EDITABLE
     //TYPES: LIST | EDITABLE
-    //BEATS: LIST
+    //Nº ANNOTATIONS: INTEGER
     //ADD TYPE: BUTTON or DROPDOWN
     //ADD TEXT DESCRIPTION: BUTTON
 
-    var db = dataServer.annotations.db;
-    db.get(aid).then(function(annotation){
-        BootstrapDialog.show({
-        title: "Edit " + annotation.title + " info",
-        message: function() {
-            var s =
-                '<div class="row">  ' +
-                    '<div class="col-md-12"> ' +
-                        '<form class="form-horizontal"> ' +
-                            '<div class="form-group"> ' +
-                                '<label class="col-md-2 control-label" for="title">Title</label> ' +
-                                '<div class="col-md-8"> ' +
-                                    '<input id="title" name="title" type="text" value="'+annotation.title+'" placeholder="Annotation Title" class="form-control input-md"/> ' +
-                                '</div> ' +
-                            '</div>' +
-                            '<div class="form-group"> ' +
-                                '<label class="col-md-2 control-label" for="description">Description</label>' +
-                                '<div class="col-md-8"> ' +
-                                    '<textarea class="form-control" name="description" rows="3" value="'+annotation.description+'"></textarea>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div class="form-group"> ' +
-                                '<label class="col-md-2 control-label" for="types">Types</label>' +
-                                '<div class="col-md-8"> ' +
-                                    '<input type="text" name="types" value="Amsterdam,Washington,Sydney,Beijing,Cairo" data-role="tagsinput" /> '+
-                                '</div> ' +
-                            '</div>' +
-                            '<div class="form-group"> ' +
-                                '<label class="col-md-2 control-label" for="nbeats">Start:End</label>' + 
-                                '<div class="col-md-8"> ' +
-                                    annotation.start + " => " + annotation.end + 
-                                '</div> ' +
-                            '</div>' +
-                            '<div class="form-group"> ' +
-                                '<label class="col-md-2 control-label" for="color">Color</label>' +
-                                '<div class="col-md-8"> ' +
-                                    '<input id="title" name="color" type="text" value="'+annotation.color+'" placeholder="Annotation Title" class="form-control input-md"/> ' +
-                                '</div> ' +
-                            '</div>' +
-                        '</form>' +
-                    '</div>' +
-                '</div>';
-            return s;
-        },
-        onshow: function(dialog){
-            dialog.getModalBody().find("input[name='types']").tagsinput('items');
-        },
-        buttons: [
-            {
-                label: 'Save',
-                action: function(dialog){
-                    // ANNOTATION DATA
-                    annotation.title = dialog.getModalBody().find("input[name='title']").val();
-                    annotation.description = dialog.getModalBody().find("textarea[name='description']").val();
-                    db.put(annotation).then(function(){dialog.close();});
-                    //TODO
-                }
-            },
-            {
-                label: 'Play',
-                action: function(dialog){
-                    //TODO: Don't use wavesurfer objects directly
-                    //wavesurfer.play(annotation.start,annotation.end);
-                }
-            },
-            {
-                label: 'Show Types Available',
-                action: function(dialog){
-                    //TODO
-                }
-            }
-        ]
-    });
-    });
+    dataServer.getAnnotationsTrack(anntrackid,function(err,anntrack){
+        var prefix = (Math.random() + "").replace(/\./g,"-");
+        if (!err) {
+            dataServer.getAnnotationsTracksTypes(anntrack.types, function(err,types){
+                if(!err) {
+                    BootstrapDialog.show({
+                        title: "Edit <b>" + anntrack.title + "</b> info",
+                        message: function() {
+                            var s = 
+                                create_form_fields(prefix,[
+                                    {id: 'id', type:'static-text', label:'ID', value:anntrack._id},
+                                    {id: 'title', type:'text', label:'Title', value:anntrack.title, placeholder: "Annotation Title"},
+                                    {id: 'description', type:'textarea', label:'Description', value:anntrack.description, placeholder: "Annotation Description"},
+                                    {id: 'types', type:'tags', label:'Types'}
+                                ]);
+                            return s;
+                        },
+                        onshow: function(dialog){
 
-
+                            var url = 'http://localhost:5984/music-annotation/_design/projections/_list/query_title/annotations-tracks-types?title=%QUERY';
+                            init_tags_input(url, anntrack._id, prefix, dialog, types);
+                            
+                        },
+                        buttons: [
+                            {
+                                label: 'Save',
+                                action: function(dialog){
+                                    // ANNOTATION DATA
+                                    var modal = dialog.getModalBody();
+                                    anntrack.title = modal.find("#"+prefix+"-title-form-input").val();
+                                    anntrack.description = modal.find("#"+prefix+"-description-form-input").val();
+                                    anntrack.types = modal.find("#"+prefix+"-types-form-input").tagsinput('items').map(function(el){ return el._id; });
+                                    dataServer.updateAnnotationsTrack(anntrack, function(err,resp){
+                                        if (!err) {
+                                            $('#annotations-track-title-'+anntrack._id).html(anntrack.title);
+                                            $('option[value="'+anntrack._id+'"]').html(anntrack.title);
+                                            dialog.close();
+                                        }
+                                    });
+                                }
+                            },
+                            {
+                                label: 'Show Types Available',
+                                action: function(dialog){
+                                    //TODO
+                                }
+                            }
+                        ]
+            });
+                }
+            })
+            
+        }
+    });
     
 }
 
-function annotationsTrackDialog(atid) {
-        //TODO
-        //TITLE: TEXT | EDITABLE
-        //DESCRIPTION: TEXT | EDITABLE
-        //TYPES: LIST | EDITABLE
-        //Nº ANNOTATIONS: INTEGER
-        //ADD TYPE: BUTTON or DROPDOWN
-        //ADD TEXT DESCRIPTION: BUTTON
+
+function annotationTypeDialog(anntypeid) {
+    var prefix = (Math.random() + "").replace(/\./g,"-");
+    if (anntypeid==undefined) {
         BootstrapDialog.show({
-            title: _track_data.title,
+            title: "Create Annotation Type",
             message: function() {
-                var s =
-                    '<div class="row">  ' +
-                        '<div class="col-md-12"> ' +
-                            '<form class="form-horizontal"> ' +
-                                '<div class="form-group"> ' +
-                                    '<label class="col-md-2 control-label" for="title">Title</label> ' +
-                                    '<div class="col-md-8"> ' +
-                                        '<input id="title" name="title" type="text" value="'+_track_data.title+'" placeholder="Annotation Title" class="form-control input-md"/> ' +
-                                    '</div> ' +
-                                '</div>' +
-                                '<div class="form-group"> ' +
-                                    '<label class="col-md-2 control-label" for="description">Description</label>' +
-                                    '<div class="col-md-8"> ' +
-                                        '<textarea class="form-control" name="description" rows="3" value="'+_track_data.description+'"></textarea>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="form-group"> ' +
-                                    '<label class="col-md-2 control-label" for="types">Types</label>' +
-                                    '<div class="col-md-8"> ' +
-                                        '<input type="text" name="types" value="Amsterdam,Washington,Sydney,Beijing,Cairo" data-role="tagsinput" /> '+
-                                    '</div> ' +
-                                '</div>' +
-                                '<div class="form-group"> ' +
-                                    '<label class="col-md-2 control-label" for="nannotations">Number of annotations</label>' +
-                                '</div>' +
-                            '</form>' +
-                        '</div>' +
-                    '</div>';
+                var s = 
+                    create_form_fields(prefix,[
+                        {id: 'title', type: 'text', label: 'Title', value: '', placeholder: "Insert Type Title"},
+                        {id: 'description', type: 'textarea', label:'Description', value: '', placeholder: "Insert Type Description"},
+                        {id: 'subtypes', type: 'tags', label: 'Sub-Types'},
+                        {id: 'supertypes', type: 'tags', label: 'Super-Types'}
+                    ]);
                 return s;
             },
             onshow: function(dialog){
-                dialog.getModalBody().find("input[name='types']").tagsinput('items');
+
+                var url = 'http://localhost:5984/music-annotation/_design/projections/_list/query_title/annotations-types?title=%QUERY';
+                init_tags_input(url, "subtypes", prefix, dialog, []);
+                init_tags_input(url, "supertypes", prefix, dialog, []);
+                
             },
             buttons: [
                 {
                     label: 'Save',
                     action: function(dialog){
-                        //TODO
+                        // ANNOTATION DATA
+                        var modal = dialog.getModalBody();
+                        var annType = {};
+                        annType.title = modal.find("#"+prefix+"-title-form-input").val();
+                        annType.description = modal.find("#"+prefix+"-description-form-input").val();
+                        dataServer.createAnnotationType(annType, function(err,resp){
+                            if (!err) 
+                                dialog.close();
+                        });
                     }
-                }, {
+                },
+                {
                     label: 'Show Types Available',
                     action: function(dialog){
                         //TODO
@@ -144,4 +170,87 @@ function annotationsTrackDialog(atid) {
                 }
             ]
         });
+    } else {
+        //TODO
     }
+}
+
+
+function relationDialog() {
+    //TODO
+}
+
+
+function create_form_fields(prefix, fields) {
+    var s = "";
+    s += '<div class="row"> <div class="col-md-12"> <form class="form-horizontal"> ';
+
+    fields.forEach(function(field) {
+        var type = field.type;
+        var id = field.id;
+        var label = field.label;
+        var value = field.value;
+        var placeholder = field.placeholder;
+        if (type=='static-text') {
+            s += 
+                '<div class="form-group"> ' +
+                    '<label class="col-md-2 control-label" for="'+prefix+'-'+id+'">'+label+'</label>' + 
+                    '<div class="col-md-10" id="'+prefix+'-'+id+'"> ' +
+                        value +
+                    '</div> ' +
+                '</div>';
+        } else if (type=='text') {
+            s += 
+                '<div class="form-group"> ' +
+                    '<label class="col-md-2 control-label" for="'+prefix+'-'+id+'-form-input">Title</label> ' +
+                    '<div class="col-md-10"> ' +
+                        '<input id="'+prefix+'-'+id+'-form-input" name="'+prefix+'-'+id+'-form-input" type="text" value="'+value+'" placeholder="'+placeholder+'" class="form-control input-md"/> ' +
+                    '</div> ' +
+                '</div>';
+        } else if (type=='textarea') {
+            s += 
+                '<div class="form-group"> ' +
+                    '<label class="col-md-2 control-label" for="'+prefix+'-'+id+'-form-input">'+label+'</label>' +
+                    '<div class="col-md-10"> ' +
+                        '<textarea class="form-control" id="'+prefix+'-'+id+'-form-input" name="'+prefix+'-'+id+'-form-input" rows="3">'+value+'</textarea>' +
+                    '</div>' +
+                '</div>';
+        } else if (type=='tags') {
+            s +=
+                '<div class="form-group"> ' +
+                    '<label class="col-md-2 control-label" for="'+prefix+'-'+id+'-form-input">'+label+'</label>' +
+                    '<div class="col-md-10"> ' +
+                        '<input type="text" id="'+prefix+'-'+id+'-form-input" name="'+prefix+'-'+id+'-form-input" data-role="tagsinput" /> '+
+                    '</div> ' +
+                '</div>';
+        }
+    });
+
+    s += '</form></div></div>';
+
+    return s;
+}
+
+function init_tags_input(url,id,prefix,dialog,types) {
+    var dataset = new Bloodhound({
+        datumTokenizer: Bloodhound.tokenizers.obj.whitespace('value'),
+        queryTokenizer: Bloodhound.tokenizers.whitespace,
+        remote: url 
+        //TODO: How can I use dataServer in here??
+    });
+    dataset.initialize();
+
+    var tagsinputfield = dialog.getModalBody().find("input[name='"+prefix+"-"+id+"-form-input']");
+
+    
+    tagsinputfield.tagsinput({
+        itemValue: '_id',
+        itemText: 'title',
+        typeaheadjs: {
+            displayKey: 'title',
+            source: dataset.ttAdapter()
+        }
+    });
+
+    types.map(function(el){ tagsinputfield.tagsinput('add',el); });
+}
